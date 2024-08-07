@@ -7,6 +7,8 @@ import Rank from './components/Rank/Rank'
 import ParticlesBg from 'particles-bg';
 import React, { useState, useEffect } from 'react';
 import FaceRecognition from './components/FaceRecognition/FaceRecognition';
+import SignIn from './components/SignIn/SignIn';
+import Register from './components/Register/Register';
 
 
 // const stub = ClarifaiStub.grpc()
@@ -53,31 +55,48 @@ function App() {
   const [input, setInput] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const [user, setUser] = useState('')
-  const [box, setBox] = useState('')
+  const [box, setBox] = useState({})
+  const [route, setRoute] = useState('SignIn')
+  const [isSignedIn, setisSignedIn] = useState(false)
 
   const onInputChange = (event) => {
     setInput(event.target.value)
   }
 
   const calculateFaceLocation = (data) => {
-    const clarifaiFace = data.outputs[0].data.regions[0].regions_info.bounding_box;
+    const clarifaiFace = data.outputs[0].data.regions[0].region_info.bounding_box;
     const image = document.getElementById('input')
     const width = Number(image.width)
     const height = Number(image.height)
-    console.log(width,height)
-     return {
-      leftCol: clarifaiFace.left_col,
-      topRow: clarifaiFace.top_row,
-      rightCol: clarifaiFace.right_col,
-      bottomRow: clarifaiFace.bottom_row
+    const measurements = {
+      leftCol: clarifaiFace.left_col * width,
+      topRow: clarifaiFace.top_row * height,
+      rightCol: width - (clarifaiFace.right_col * width),
+      bottomRow: height - (clarifaiFace.bottom_row * height)
+    } 
+
+    return measurements
+  }
+
+  const displayFaceBox = (bocks) => {
+    console.log(bocks)
+    setBox(bocks);
+  }
+
+  const onRouteChange = (route) => {
+    if (route === 'SignOut') {
+      setisSignedIn(false)
+    } else if (route === 'home') {
+      setisSignedIn(true)
     }
+    setRoute(route)
   }
 
   const onButtonSubmit = () => {
     setImageUrl(input);
     fetch("https://api.clarifai.com/v2/models/" + "face-detection" + "/outputs", returnClarifaiJSON(input))
     .then(response => response.json())
-    .then(response => calculateFaceLocation(response))
+    .then(response => displayFaceBox(calculateFaceLocation(response)))
     .catch(err => console.log(err))
       /* {
       console.log('hi', response)
@@ -94,13 +113,20 @@ function App() {
   return (
     <div className="App">
       <ParticlesBg type="thick" bg={true} />
-      <Nav />
-      <Logo />
-      <Rank />
-      <ImageLinkForm 
-      onInputChange={onInputChange} 
-      onButtonSubmit={onButtonSubmit}/>
-      <FaceRecognition imageUrl={imageUrl}/>
+      <Nav isSignedIn={isSignedIn} onRouteChange={onRouteChange}/>
+      { route === 'home' ? 
+      <div>
+        <Logo />
+        <Rank />
+        <ImageLinkForm 
+        onInputChange={onInputChange} 
+        onButtonSubmit={onButtonSubmit}/>
+        <FaceRecognition imageUrl={imageUrl} box={box}/>
+      </div> 
+      : ( route === 'SignIn' 
+        ? <SignIn onRouteChange={onRouteChange}/> 
+        : <Register onRouteChange={onRouteChange} /> )
+       } 
     </div>
   );
 }
